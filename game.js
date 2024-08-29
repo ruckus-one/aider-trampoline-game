@@ -23,14 +23,14 @@ class TrampolineGame {
             y2: this.canvas.height - 100,
             segments: 20,
             points: [],
-            k: 0.3, // spring constant
-            damping: 0.9 // damping factor
+            k: 0.2, // spring constant (reduced from 0.3)
+            damping: 0.95 // damping factor (increased from 0.9)
         };
 
         this.initTrampoline();
 
         this.gravity = 0.5;
-        this.bounce = -1.2;
+        this.bounce = -0.8; // reduced from -1.2
 
         this.keys = {
             left: false,
