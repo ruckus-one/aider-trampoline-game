@@ -12,18 +12,25 @@ class TrampolineGame {
             vy: 0,
             vx: 0,
             speed: 6,
-            jumpForce: -15
+            jumpForce: -15,
+            mass: 1
         };
 
         this.trampoline = {
             x1: 100,
             y1: this.canvas.height - 100,
             x2: this.canvas.width - 100,
-            y2: this.canvas.height - 100
+            y2: this.canvas.height - 100,
+            segments: 20,
+            points: [],
+            k: 0.3, // spring constant
+            damping: 0.9 // damping factor
         };
 
+        this.initTrampoline();
+
         this.gravity = 0.5;
-        this.bounce = -0.7;
+        this.bounce = -1.2;
 
         this.keys = {
             left: false,
@@ -33,6 +40,17 @@ class TrampolineGame {
 
         this.addEventListeners();
         this.gameLoop();
+    }
+
+    initTrampoline() {
+        const segmentWidth = (this.trampoline.x2 - this.trampoline.x1) / this.trampoline.segments;
+        for (let i = 0; i <= this.trampoline.segments; i++) {
+            this.trampoline.points.push({
+                x: this.trampoline.x1 + i * segmentWidth,
+                y: this.trampoline.y1,
+                vy: 0
+            });
+        }
     }
 
     addEventListeners() {
@@ -58,12 +76,10 @@ class TrampolineGame {
         else if (this.keys.right) this.player.vx = this.player.speed;
         else this.player.vx = 0;
 
-        // Handle jumping
-        if (this.keys.up && this.player.y + this.player.radius >= this.getTrampolineY(this.player.x)) {
-            this.player.vy = this.player.jumpForce;
-        }
-
+        // Apply gravity
         this.player.vy += this.gravity;
+
+        // Update player position
         this.player.x += this.player.vx;
         this.player.y += this.player.vy;
 
@@ -76,17 +92,43 @@ class TrampolineGame {
             this.player.vx = -this.player.vx * 0.5;
         }
 
-        // Bounce off trampoline
-        const trampolineY = this.getTrampolineY(this.player.x);
-        if (this.player.y + this.player.radius > trampolineY) {
-            this.player.y = trampolineY - this.player.radius;
-            this.player.vy *= this.bounce;
+        // Update trampoline physics
+        this.updateTrampoline();
+
+        // Check for collision with trampoline
+        const trampolineSegment = Math.floor((this.player.x - this.trampoline.x1) / ((this.trampoline.x2 - this.trampoline.x1) / this.trampoline.segments));
+        if (trampolineSegment >= 0 && trampolineSegment < this.trampoline.points.length - 1) {
+            const leftPoint = this.trampoline.points[trampolineSegment];
+            const rightPoint = this.trampoline.points[trampolineSegment + 1];
+            const trampolineY = leftPoint.y + (rightPoint.y - leftPoint.y) * (this.player.x - leftPoint.x) / (rightPoint.x - leftPoint.x);
+
+            if (this.player.y + this.player.radius > trampolineY) {
+                // Collision with trampoline
+                this.player.y = trampolineY - this.player.radius;
+                const avgVy = (leftPoint.vy + rightPoint.vy) / 2;
+                this.player.vy = avgVy * this.bounce - this.player.vy * this.bounce;
+
+                // Apply force to trampoline
+                const force = this.player.mass * (this.player.vy - avgVy) / 2;
+                leftPoint.vy += force / this.player.mass;
+                rightPoint.vy += force / this.player.mass;
+            }
         }
 
         // Bounce off bottom of canvas
         if (this.player.y + this.player.radius > this.canvas.height) {
             this.player.y = this.canvas.height - this.player.radius;
             this.player.vy *= this.bounce;
+        }
+    }
+
+    updateTrampoline() {
+        for (let i = 0; i < this.trampoline.points.length; i++) {
+            const point = this.trampoline.points[i];
+            const force = -this.trampoline.k * (point.y - this.trampoline.y1);
+            point.vy += force;
+            point.vy *= this.trampoline.damping;
+            point.y += point.vy;
         }
     }
 
@@ -107,10 +149,9 @@ class TrampolineGame {
 
         // Draw trampoline
         this.ctx.beginPath();
-        this.ctx.moveTo(this.trampoline.x1, this.trampoline.y1);
-        for (let x = this.trampoline.x1; x <= this.trampoline.x2; x++) {
-            const y = this.getTrampolineY(x);
-            this.ctx.lineTo(x, y);
+        this.ctx.moveTo(this.trampoline.points[0].x, this.trampoline.points[0].y);
+        for (let i = 1; i < this.trampoline.points.length; i++) {
+            this.ctx.lineTo(this.trampoline.points[i].x, this.trampoline.points[i].y);
         }
         this.ctx.strokeStyle = 'blue';
         this.ctx.lineWidth = 5;
