@@ -11,8 +11,8 @@ class TrampolineGame {
             radius: 20,
             vy: 0,
             vx: 0,
-            speed: 5,
-            jumpForce: -10
+            speed: 6,
+            jumpForce: -15
         };
 
         this.trampoline = {
